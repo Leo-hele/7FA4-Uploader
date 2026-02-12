@@ -182,7 +182,7 @@ def upload(problemid, file, password, usersid):
                 continue
             revoke(item["submissionId"], cookies, headers)
             logging.info(f"上传成功，提交ID：{item["submissionId"]}")
-            break
+            return item["submissionId"]
         else:
             logging.error("无法找到提交ID")
 
@@ -225,6 +225,7 @@ def download(submissionid, password, usersid):
     with open(f"{filename}", "wb") as f:
         f.write(obj)
     logging.debug(f"下载文件：{filename}")
+    return obj
 
 
 if __name__ == '__main__':
