@@ -3,31 +3,33 @@ import json, base64, gzip
 import re, html, codecs
 import requests
 from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
+from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Hash import SHA256
 
 
-def encrypt(data, password):
-    key = password.encode('utf-8')
-    try:
-        cipher = AES.new(key, AES.MODE_CBC)
-    except:
-        logging.error(f"错误：{password}")
-        exit(1)
+def encrypt(data: bytes, password: str) -> bytes:
+    salt = get_random_bytes(16) # 随机盐
+    key = PBKDF2(password.encode('utf-8'), salt, 32, count=100_000, hmac_hash_module=SHA256)
+    iv = get_random_bytes(16)
+    cipher = AES.new(key, AES.MODE_CBC, iv)
     ct_bytes = cipher.encrypt(pad(data, AES.block_size))
     return json.dumps({
-        "iv": base64.b64encode(cipher.iv).decode('utf-8'),
+        "salt": base64.b64encode(salt).decode('utf-8'),
+        "iv": base64.b64encode(iv).decode('utf-8'),
         "ct": base64.b64encode(ct_bytes).decode('utf-8')
-    }).encode("utf-8")
+    }).encode('utf-8')
 
 
-def decrypt(data, password):
-    key = password.encode('utf-8')
-    data = json.loads(data)
-    iv = base64.b64decode(data["iv"])
-    ct = base64.b64decode(data["ct"])
+def decrypt(data: bytes, password: str) -> bytes:
+    data_json = json.loads(data)
+    salt = base64.b64decode(data_json["salt"])
+    iv = base64.b64decode(data_json["iv"])
+    ct = base64.b64decode(data_json["ct"])
+    key = PBKDF2(password.encode('utf-8'), salt, 32, count=100_000, hmac_hash_module=SHA256)
     cipher = AES.new(key, AES.MODE_CBC, iv)
-    pt = unpad(cipher.decrypt(ct), AES.block_size)
-    return pt
+    return unpad(cipher.decrypt(ct), AES.block_size)
 
 
 def getNotError(response):
@@ -57,7 +59,7 @@ def getStatus(submissionid, cookies, headers):
     )
     text = getNotError(response)
     match = re.search(
-        r"const itemList *= *(\[.*\])",
+        r"const itemList *= *(\[.*])",
         text,
         re.DOTALL
     )
@@ -138,7 +140,7 @@ def upload(problemid, file, password, usersid):
         headers=headers, cookies=cookies
     )
     match = re.search(
-        r"const itemList *= *(\[.*\])",
+        r"const itemList *= *(\[.*])",
         getNotError(response),
         re.DOTALL
     )

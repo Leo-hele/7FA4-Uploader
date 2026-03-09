@@ -9,6 +9,9 @@ a = Analysis(
     hiddenimports=[
         'Crypto.Cipher',
         'Crypto.Util',
+        'Crypto.Protocol.KDF',
+        'Crypto.Hash',
+        'Crypto.Random',
     ],
     hookspath=[],
     hooksconfig={},
